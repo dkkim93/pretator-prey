@@ -7,7 +7,7 @@ from collections import OrderedDict
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
-class Opponent(object):
+class Prey(object):
     def __init__(self, env, log, args, name, i_agent):
         self.env = env
         self.log = log
@@ -18,10 +18,16 @@ class Opponent(object):
         self.set_dim()
         self.set_policy()
 
-        assert "opponent" in self.name
+        assert "prey" in self.name
 
     def set_dim(self):
-        self.actor_input_dim = self.env.observation_space[0].shape[0]
+        """
+        NOTE that env.observation_space returns observation space for
+        both predator and prey but with the order:
+        [predator_1, predator_2, ..., prey_1]
+        Thus the index of -1 is used
+        """
+        self.actor_input_dim = self.env.observation_space[-1].shape[0]
         self.actor_output_dim = self.env.action_space[0].shape[0] 
         self.critic_input_dim = (self.actor_input_dim + self.actor_output_dim)
         self.max_action = float(self.env.action_space[0].high[0])
@@ -40,7 +46,7 @@ class Opponent(object):
             actor_input_dim=self.actor_input_dim,
             actor_output_dim=self.actor_output_dim,
             critic_input_dim=self.critic_input_dim,
-            n_hidden=self.args.opponent_n_hidden,
+            n_hidden=self.args.prey_n_hidden,
             max_action=self.max_action,
             name=self.name,
             args=self.args,

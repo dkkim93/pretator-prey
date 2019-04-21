@@ -31,9 +31,10 @@ export CUDA_VISIBLE_DEVICES=-1
 
 # Experiment 1
 python3.6 main.py \
---env-name "simple" \
+--env-name "simple_tag" \
 --start-timesteps 2000 \
 --ep-max-timesteps 100 \
+--n-predator 1 \
+--n-prey 1 \
 --seed 0 \
---train-opponent \
 --prefix ""

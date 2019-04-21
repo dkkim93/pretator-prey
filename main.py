@@ -4,17 +4,16 @@ import os
 import numpy as np
 from misc.utils import set_log, make_env
 from tensorboardX import SummaryWriter
-from trainer.train_opponent import train_opponent
-from trainer.train_modeler import train_modeler
+from trainer.train import train
 
 
 def set_policy(env, tb_writer, log, args, name, i_agent):
-    if name == "opponent":
-        from policy.opponent import Opponent
-        policy = Opponent(env=env, log=log, name=name, args=args, i_agent=i_agent)
-    elif name == "modeler":
-        from policy.modeler import Modeler
-        policy = Modeler(env=env, log=log, name=name, args=args, i_agent=i_agent)
+    if name == "predator":
+        from policy.predator import Predator
+        policy = Predator(env=env, log=log, name=name, args=args, i_agent=i_agent)
+    elif name == "prey":
+        from policy.prey import Prey
+        policy = Prey(env=env, log=log, name=name, args=args, i_agent=i_agent)
     else:
         raise ValueError("Invalid name")
 
@@ -41,14 +40,18 @@ def main(args):
     np.random.seed(args.seed)
 
     # Initialize policy
-    opponent_n = [
-        set_policy(env, tb_writer, log, args, name="opponent", i_agent=i_agent)
-        for i_agent in range(1)]
+    predator_agents = [
+        set_policy(env, tb_writer, log, args, name="predator", i_agent=i_agent)
+        for i_agent in range(args.n_predator)]
+
+    prey_agents = [
+        set_policy(env, tb_writer, log, args, name="prey", i_agent=i_agent)
+        for i_agent in range(args.n_prey)]
 
     # Start training
-    train_opponent(
-        opponent_n=opponent_n, env=env, 
-        log=log, tb_writer=tb_writer, args=args)
+    train(
+        predator_agents=predator_agents, prey_agents=prey_agents, 
+        env=env, log=log, tb_writer=tb_writer, args=args)
 
 
 if __name__ == "__main__":
@@ -91,13 +94,19 @@ if __name__ == "__main__":
 
     # Predator
     parser.add_argument(
-        "--opponent-n-hidden", default=400, type=int,
+        "--predator-n-hidden", default=400, type=int,
         help="Number of hidden units")
+    parser.add_argument(
+        "--n-predator", default=1, type=int, 
+        help="Number of predators")
 
     # Prey
     parser.add_argument(
-        "--opponent-n-hidden", default=400, type=int,
+        "--prey-n-hidden", default=400, type=int,
         help="Number of hidden units")
+    parser.add_argument(
+        "--n-prey", default=1, type=int, 
+        help="Number of preys")
 
     # Env
     parser.add_argument(
@@ -119,8 +128,7 @@ if __name__ == "__main__":
 
     # Set log name
     args.log_name = \
-        "env::%s_seed::%s_tau::%s_start::%s_noise_std::%s_batch_size::%s_prefix::%s_log" % (
-            args.env_name, str(args.seed), args.tau, args.start_timesteps, 
-            args.expl_noise, args.batch_size, args.prefix)
+        "env::%s_seed::%s_n_predator::%s_n_prey::%s_prefix::%s_log" % (
+            args.env_name, str(args.seed), args.n_predator, args.n_prey, args.prefix)
 
     main(args=args)

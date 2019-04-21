@@ -48,11 +48,13 @@ def make_env(args):
     # Check github branch
     check_github(
         path="./thirdparty/multiagent-particle-envs",
-        branch_name="opponent")
+        branch_name="predator_prey")
 
     # Load multi-agent particle env
     scenario = scenarios.load(args.env_name + ".py").Scenario()
-    world = scenario.make_world()
+    world = scenario.make_world(
+        n_prey=args.n_prey,
+        n_predator=args.n_predator)
     done_callback = None
 
     env = MultiAgentEnv(
@@ -63,6 +65,7 @@ def make_env(args):
         done_callback=done_callback)
 
     assert env.discrete_action_space is False, "For cont. action, this flag must be False"
+    assert env.shared_reward is False, "For predator-prey, this must be False"
 
     return env
 
