@@ -34,7 +34,8 @@ python3.6 main.py \
 --env-name "simple_tag" \
 --start-timesteps 2000 \
 --ep-max-timesteps 100 \
---n-predator 3 \
+--ep-max 1000 \
+--n-predator 1 \
 --n-prey 1 \
 --seed 0 \
 --prefix ""

@@ -118,6 +118,9 @@ if __name__ == "__main__":
 
     # Misc
     parser.add_argument(
+        "--max-ep", type=int, required=True,
+        help="Training is terminated when max ep is reached")
+    parser.add_argument(
         "--seed", default=0, type=int, 
         help="Sets Gym, PyTorch and Numpy seeds")
     parser.add_argument(

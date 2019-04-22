@@ -158,5 +158,13 @@ def train(predator_agents, prey_agents, env, log, tb_writer, args):
         for prey in prey_agents:
             prey.update_policy(total_eps=total_eps)
 
-        # if args.save_opponent and total_eps % 500 == 0:
-        #     save(opponent_n, total_eps)
+        if total_eps == args.ep_max:
+            for predator in predator_agents:
+                predator.save_weight(
+                    filename="seed::" + str(seed) + "_" + predator.name,
+                    directory="./pytorch_models")
+
+            for prey in prey_agents:
+                prey.save_weight(
+                    filename="seed::" + str(seed) + "_" + prey.name,
+                    directory="./pytorch_models")
