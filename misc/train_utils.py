@@ -13,7 +13,7 @@ def split_observations(env_observations, args):
     """
     assert len(env_observations) == (args.n_prey + args.n_predator), "Number of obs does not equal"
 
-    predator_observations = env_observations[0:args.n_prey]
-    prey_obs = env_observations[args.n_prey:]
+    predator_observations = env_observations[0:args.n_predator]
+    prey_obs = env_observations[args.n_predator:]
 
     return predator_observations, prey_obs
