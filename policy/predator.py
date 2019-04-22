@@ -83,7 +83,7 @@ class Predator(object):
     def clear_memory(self):
         self.memory.clear()
 
-    def update_policy(self, opponent_n, total_timesteps):
+    def update_policy(self):
         if self.args.n_predator > 1:
             raise NotImplementedError("Make it centralized train")
 

@@ -18,8 +18,8 @@ def eval_progress(predator_agents, prey_agents, env, log, tb_writer, args):
             terminal = False
 
             while True:
-                # if total_eps % 100 == 0:
-                #     env.render()
+                if total_eps % 20 == 0:
+                    env.render()
 
                 predator_observations, prey_observations = \
                     split_observations(env_observations, args=args)
@@ -27,7 +27,6 @@ def eval_progress(predator_agents, prey_agents, env, log, tb_writer, args):
                 predator_actions = []
                 for predator, predator_obs in zip(predator_agents, predator_observations):
                     predator_action = predator.select_deterministic_action(np.array(predator_obs))
-                    predator_action = np.array([0., 0.])
                     predator_actions.append(predator_action)
 
                 prey_actions = []
@@ -35,13 +34,13 @@ def eval_progress(predator_agents, prey_agents, env, log, tb_writer, args):
                     prey_action = prey.select_deterministic_action(np.array(prey_obs))
                     prey_actions.append(prey_action)
 
-                new_env_obseravations, rewards, dones, _ = env.step(copy.deepcopy(predator_actions + prey_actions))
+                new_env_obseravations, env_rewards, dones, _ = env.step(copy.deepcopy(predator_actions + prey_actions))
                 terminal = True if ep_timesteps + 1 == args.ep_max_timesteps else False
 
                 # For next timestep
                 env_observations = new_env_obseravations
-                predator_reward += rewards[0]
-                prey_reward += rewards[-1]
+                predator_reward += env_rewards[0]
+                prey_reward += env_rewards[-1]
                 ep_timesteps += 1
 
                 if terminal:
@@ -57,50 +56,75 @@ def eval_progress(predator_agents, prey_agents, env, log, tb_writer, args):
         tb_writer.add_scalar("reward/prey_reward", prey_reward, total_eps)
 
 
-def collect_one_traj(opponent_n, env, log, args, tb_writer):
+def collect_one_traj(predator_agents, prey_agents, env, log, args, tb_writer):
     global total_timesteps, total_eps
 
-    ep_reward = 0.
+    ep_predator_reward = 0.
+    ep_prey_reward = 0.
     ep_timesteps = 0
-    env_obs_n = env.reset()
+    env_observations = env.reset()
 
     while True:
-        # opponent selects its action
-        opponent_obs_n = env_obs_n
-        opponent_action_n = []
-        for opponent, opponent_obs in zip(opponent_n, opponent_obs_n):
-            opponent_action = opponent.select_stochastic_action(
-                obs=np.array(opponent_obs), total_timesteps=total_timesteps)
-            opponent_action_n.append(opponent_action)
+        predator_observations, prey_observations = \
+            split_observations(env_observations, args=args)
+
+        # Predator selects its action
+        predator_actions = []
+        for predator, predator_obs in zip(predator_agents, predator_observations):
+            predator_action = predator.select_stochastic_action(np.array(predator_obs), total_timesteps)
+            predator_actions.append(predator_action)
+
+        # Prey selects its action
+        prey_actions = []
+        for prey, prey_obs in zip(prey_agents, prey_observations):
+            prey_action = prey.select_stochastic_action(np.array(prey_obs), total_timesteps)
+            prey_actions.append(prey_action)
 
         # Perform action
-        new_env_obs_n, env_reward_n, env_done_n, _ = env.step(copy.deepcopy(opponent_action_n))
+        new_env_observations, env_rewards, dones, _ = env.step(copy.deepcopy(predator_actions + prey_actions))
         terminal = True if ep_timesteps + 1 == args.ep_max_timesteps else False
 
-        # Add opponent memory
-        new_opponent_obs_n = new_env_obs_n
-        opponent_reward_n = env_reward_n
+        # Add predator memory
+        new_predator_observations, new_prey_observations = \
+            split_observations(new_env_observations, args=args)
+        predator_reward = env_rewards[0]
 
-        for i_opponent, opponent in enumerate(opponent_n):
-            opponent.add_memory(
-                obs=opponent_obs_n[i_opponent],
-                new_obs=new_opponent_obs_n[i_opponent],
-                action=opponent_action_n[i_opponent],
-                reward=opponent_reward_n[i_opponent],
+        for i_predator, predator in enumerate(predator_agents):
+            predator.add_memory(
+                obs=predator_observations[i_predator],
+                new_obs=new_predator_observations[i_predator],
+                action=predator_actions[i_predator],
+                reward=predator_reward,
+                done=False)
+
+        # Add prey memory
+        prey_reward = env_rewards[-1]
+
+        for i_prey, prey in enumerate(prey_agents):
+            prey.add_memory(
+                obs=prey_observations[i_prey],
+                new_obs=new_prey_observations[i_prey],
+                action=prey_actions[i_prey],
+                reward=prey_reward,
                 done=False)
 
         # For next timestep
-        env_obs_n = new_env_obs_n
+        env_observations = new_env_observations
         ep_timesteps += 1
         total_timesteps += 1
-        ep_reward += env_reward_n[0]
+        ep_predator_reward += predator_reward
+        ep_prey_reward += prey_reward
 
         if terminal: 
             total_eps += 1
-            log[args.log_name].info("Train episode reward {} at episode {}".format(ep_reward, total_eps))
-            tb_writer.add_scalar("reward/train_ep_reward", ep_reward, total_eps)
+            log[args.log_name].info("Train episode predator reward {} at episode {}".format(
+                ep_predator_reward, total_eps))
+            log[args.log_name].info("Train episode prey reward {} at episode {}".format(
+                ep_prey_reward, total_eps))
+            tb_writer.add_scalar("reward/train_ep_predator_reward", ep_predator_reward, total_eps)
+            tb_writer.add_scalar("reward/train_ep_prey_reward", ep_prey_reward, total_eps)
 
-            return ep_reward
+            return
 
 
 def train(predator_agents, prey_agents, env, log, tb_writer, args):
@@ -109,15 +133,15 @@ def train(predator_agents, prey_agents, env, log, tb_writer, args):
             predator_agents=predator_agents, prey_agents=prey_agents,  
             env=env, log=log, tb_writer=tb_writer, args=args)
         
-        import sys
-        sys.exit()
-
         collect_one_traj(
-            opponent_n=opponent_n, env=env, log=log,
-            args=args, tb_writer=tb_writer)
+            predator_agents=predator_agents, prey_agents=prey_agents,
+            env=env, log=log, args=args, tb_writer=tb_writer)
 
-        for opponent in opponent_n:
-            opponent.update_policy(opponent_n, total_timesteps)
+        for predator in predator_agents:
+            predator.update_policy()
 
-        if args.save_opponent and total_eps % 500 == 0:
-            save(opponent_n, total_eps)
+        for prey in prey_agents:
+            prey.update_policy()
+
+        # if args.save_opponent and total_eps % 500 == 0:
+        #     save(opponent_n, total_eps)

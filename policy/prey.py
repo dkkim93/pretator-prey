@@ -80,7 +80,7 @@ class Prey(object):
     def clear_memory(self):
         self.memory.clear()
 
-    def update_policy(self, opponent_n, total_timesteps):
+    def update_policy(self):
         debug = self.policy.train(
             replay_buffer=self.memory,
             iterations=self.args.ep_max_timesteps,
