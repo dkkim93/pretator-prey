@@ -10,10 +10,10 @@ from trainer.train import train
 def set_policy(env, tb_writer, log, args, name, i_agent):
     if name == "predator":
         from policy.predator import Predator
-        policy = Predator(env=env, log=log, name=name, args=args, i_agent=i_agent)
+        policy = Predator(env=env, log=log, tb_writer=tb_writer, name=name, args=args, i_agent=i_agent)
     elif name == "prey":
         from policy.prey import Prey
-        policy = Prey(env=env, log=log, name=name, args=args, i_agent=i_agent)
+        policy = Prey(env=env, log=log, tb_writer=tb_writer, name=name, args=args, i_agent=i_agent)
     else:
         raise ValueError("Invalid name")
 

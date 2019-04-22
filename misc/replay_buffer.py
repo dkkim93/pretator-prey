@@ -42,13 +42,33 @@ class ReplayBuffer(object):
 
         return np.array(x), np.array(y), np.array(u), np.array(r).reshape(-1, 1), np.array(d).reshape(-1, 1)
 
-    def sample_for_modeler(self, batch_size):
+    def centralized_sample(self, batch_size=100, n_agent=None):
+        # NOTE Order is agent 0 and 1
         ind = np.random.randint(0, len(self.storage), size=batch_size)
-        items = [[] for _ in range(len(self.storage[0]))]
+        x_n, y_n, u_n, r_n, d_n = [], [], [], [], []
 
-        for i in ind: 
-            experience = self.storage[i]
-            for i_item, item in enumerate(experience):
-                items[i_item].append(np.array(item, copy=False))
+        for i_agent in range(n_agent):
+            x, y, u, r, d = [], [], [], [], []
 
-        return [np.array(item) for item in items]
+            for i in ind: 
+                X, Y, U, R, D = self.storage[i]                                                                                                                                                                                                                                                                       
+                assert len(X) == n_agent
+
+                x.append(np.array(X[i_agent], copy=False))
+                y.append(np.array(Y[i_agent], copy=False))
+                u.append(np.array(U[i_agent], copy=False))
+                r.append(np.array(R[i_agent], copy=False))
+                d.append(np.array(D[i_agent], copy=False))
+
+            assert len(x) == batch_size
+            x, y, u, r, d = np.array(x), np.array(y), np.array(u), np.array(r).reshape(-1, 1), np.array(d).reshape(-1, 1)
+
+            x_n.append(x)
+            y_n.append(y)
+            u_n.append(u)
+            r_n.append(r)
+            d_n.append(d)
+
+        assert len(x_n) == n_agent
+
+        return x_n, y_n, u_n, r_n, d_n

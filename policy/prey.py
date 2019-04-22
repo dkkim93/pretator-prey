@@ -8,9 +8,10 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 class Prey(object):
-    def __init__(self, env, log, args, name, i_agent):
+    def __init__(self, env, log, tb_writer, args, name, i_agent):
         self.env = env
         self.log = log
+        self.tb_writer = tb_writer
         self.args = args
         self.name = name + str(i_agent)
         self.i_agent = i_agent
@@ -80,7 +81,7 @@ class Prey(object):
     def clear_memory(self):
         self.memory.clear()
 
-    def update_policy(self):
+    def update_policy(self, total_eps):
         debug = self.policy.train(
             replay_buffer=self.memory,
             iterations=self.args.ep_max_timesteps,
@@ -90,6 +91,13 @@ class Prey(object):
             policy_noise=self.args.policy_noise, 
             noise_clip=self.args.noise_clip,
             policy_freq=self.args.policy_freq)
+
+        self.tb_writer.add_scalars(
+            "loss/actor_loss", 
+            {self.name: debug["actor_loss"]}, total_eps)
+        self.tb_writer.add_scalars(
+            "loss/critic_loss", 
+            {self.name: debug["critic_loss"]}, total_eps)
 
         return debug
 

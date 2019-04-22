@@ -8,9 +8,10 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 class Predator(object):
-    def __init__(self, env, log, args, name, i_agent):
+    def __init__(self, env, log, tb_writer, args, name, i_agent):
         self.env = env
         self.log = log
+        self.tb_writer = tb_writer
         self.args = args
         self.name = name + str(i_agent)
         self.i_agent = i_agent
@@ -25,15 +26,18 @@ class Predator(object):
         NOTE that env.observation_space returns observation space for
         both predator and prey but with the order:
         [predator_1, predator_2, ..., prey_1]
-        Thus the index of 0 is used
+        Thus the index of 0 is used for getting actor input dim
+
+        For critic, it is centralized training and it uses all obs and actions, 
+        as done in MADDPG and MADDPG-PyTorch code:
+        https://github.com/shariqiqbal2810/maddpg-pytorch/blob/master/algorithms/maddpg.py
         """
         self.actor_input_dim = self.env.observation_space[0].shape[0]
         self.actor_output_dim = self.env.action_space[0].shape[0] 
-        self.critic_input_dim = (self.actor_input_dim + self.actor_output_dim)
+        self.critic_input_dim = 0
+        for obs_space, action_space in zip(self.env.observation_space, self.env.action_space):
+            self.critic_input_dim += (obs_space.shape[0] + action_space.shape[0])
         self.max_action = float(self.env.action_space[0].high[0])
-
-        if self.args.n_predator > 1:
-            raise NotImplementedError("Make it centralized train")
 
         self.log[self.args.log_name].info("[{0}] Actor input dim: {1}".format(
             self.name, self.actor_input_dim))
@@ -83,11 +87,9 @@ class Predator(object):
     def clear_memory(self):
         self.memory.clear()
 
-    def update_policy(self):
-        if self.args.n_predator > 1:
-            raise NotImplementedError("Make it centralized train")
-
-        debug = self.policy.train(
+    def update_policy(self, agents, total_eps):
+        debug = self.policy.centralized_train(
+            agents=agents,
             replay_buffer=self.memory,
             iterations=self.args.ep_max_timesteps,
             batch_size=self.args.batch_size, 
@@ -96,6 +98,13 @@ class Predator(object):
             policy_noise=self.args.policy_noise, 
             noise_clip=self.args.noise_clip,
             policy_freq=self.args.policy_freq)
+
+        self.tb_writer.add_scalars(
+            "loss/actor_loss", 
+            {self.name: debug["actor_loss"]}, total_eps)
+        self.tb_writer.add_scalars(
+            "loss/critic_loss", 
+            {self.name: debug["critic_loss"]}, total_eps)
 
         return debug
 

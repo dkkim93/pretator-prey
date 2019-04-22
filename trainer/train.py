@@ -10,7 +10,7 @@ def eval_progress(predator_agents, prey_agents, env, log, tb_writer, args):
     if total_eps % 3 == 0:
         predator_reward = 0.
         prey_reward = 0.
-        n_eval = 10
+        n_eval = 5
 
         for i_eval in range(n_eval):
             env_observations = env.reset()
@@ -50,10 +50,16 @@ def eval_progress(predator_agents, prey_agents, env, log, tb_writer, args):
         predator_reward /= float(n_eval)
         prey_reward /= float(n_eval)
 
-        log[args.log_name].info("[ EVAL ] Predator Reward {:.5f} at episode {}".format(predator_reward, total_eps))
-        log[args.log_name].info("[ EVAL ] Prey Reward {:.5f} at episode {}".format(prey_reward, total_eps))
-        tb_writer.add_scalar("reward/predator_reward", predator_reward, total_eps)
-        tb_writer.add_scalar("reward/prey_reward", prey_reward, total_eps)
+        log[args.log_name].info(
+            "[ EVAL ] Predator Reward {:.5f} at episode {}".format(predator_reward, total_eps))
+        log[args.log_name].info(
+            "[ EVAL ] Prey Reward {:.5f} at episode {}".format(prey_reward, total_eps))
+        tb_writer.add_scalars(
+            "reward/predator_reward", 
+            {"eval_reward": predator_reward}, total_eps)
+        tb_writer.add_scalars(
+            "reward/prey_reward", 
+            {"eval_reward": prey_reward}, total_eps)
 
 
 def collect_one_traj(predator_agents, prey_agents, env, log, args, tb_writer):
@@ -85,19 +91,21 @@ def collect_one_traj(predator_agents, prey_agents, env, log, args, tb_writer):
         terminal = True if ep_timesteps + 1 == args.ep_max_timesteps else False
 
         # Add predator memory
+        # NOTE Predator uses centralized training (MADDPG)
         new_predator_observations, new_prey_observations = \
             split_observations(new_env_observations, args=args)
         predator_reward = env_rewards[0]
 
         for i_predator, predator in enumerate(predator_agents):
             predator.add_memory(
-                obs=predator_observations[i_predator],
-                new_obs=new_predator_observations[i_predator],
-                action=predator_actions[i_predator],
-                reward=predator_reward,
-                done=False)
+                obs=predator_observations + prey_observations,
+                new_obs=new_predator_observations + prey_observations,
+                action=predator_actions + prey_actions,
+                reward=[predator_reward for _ in range(len(dones))],
+                done=[False for _ in range(len(dones))])
 
         # Add prey memory
+        # NOTE Predator uses decentralized training (DDPG)
         prey_reward = env_rewards[-1]
 
         for i_prey, prey in enumerate(prey_agents):
@@ -117,12 +125,17 @@ def collect_one_traj(predator_agents, prey_agents, env, log, args, tb_writer):
 
         if terminal: 
             total_eps += 1
+
             log[args.log_name].info("Train episode predator reward {} at episode {}".format(
                 ep_predator_reward, total_eps))
             log[args.log_name].info("Train episode prey reward {} at episode {}".format(
                 ep_prey_reward, total_eps))
-            tb_writer.add_scalar("reward/train_ep_predator_reward", ep_predator_reward, total_eps)
-            tb_writer.add_scalar("reward/train_ep_prey_reward", ep_prey_reward, total_eps)
+            tb_writer.add_scalars(
+                "reward/predator_reward", 
+                {"train_reward": ep_predator_reward}, total_eps)
+            tb_writer.add_scalars(
+                "reward/prey_reward", 
+                {"train_reward": ep_prey_reward}, total_eps)
 
             return
 
@@ -138,10 +151,12 @@ def train(predator_agents, prey_agents, env, log, tb_writer, args):
             env=env, log=log, args=args, tb_writer=tb_writer)
 
         for predator in predator_agents:
-            predator.update_policy()
+            predator.update_policy(
+                agents=predator_agents + prey_agents, 
+                total_eps=total_eps)
 
         for prey in prey_agents:
-            prey.update_policy()
+            prey.update_policy(total_eps=total_eps)
 
         # if args.save_opponent and total_eps % 500 == 0:
         #     save(opponent_n, total_eps)
