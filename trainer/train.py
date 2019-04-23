@@ -161,10 +161,10 @@ def train(predator_agents, prey_agents, env, log, tb_writer, args):
         if total_eps == args.ep_max:
             for predator in predator_agents:
                 predator.save_weight(
-                    filename="seed::" + str(seed) + "_" + predator.name,
+                    filename="seed::" + str(args.seed) + "_" + predator.name,
                     directory="./pytorch_models")
 
             for prey in prey_agents:
                 prey.save_weight(
-                    filename="seed::" + str(seed) + "_" + prey.name,
+                    filename="seed::" + str(args.seed) + "_" + prey.name,
                     directory="./pytorch_models")
