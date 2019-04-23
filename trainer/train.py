@@ -168,3 +168,6 @@ def train(predator_agents, prey_agents, env, log, tb_writer, args):
                 prey.save_weight(
                     filename="seed::" + str(args.seed) + "_" + prey.name,
                     directory="./pytorch_models")
+
+            import sys
+            sys.exit()
