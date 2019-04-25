@@ -23,14 +23,16 @@ def main(args):
         batch_size=args.fast_batch_size, 
         num_workers=args.num_workers,
         args=args)
-
+    
+    # NOTE Observation space is a list with [predator0, predator1, ..., prey]
+    # Thus using the index of 0
     policy = NormalMLPPolicy(
-        input_size=int(np.prod(sampler.envs.observation_space.shape)),
-        output_size=int(np.prod(sampler.envs.action_space.shape)),
+        input_size=int(np.prod(sampler.envs.observation_space[0].shape)),
+        output_size=int(np.prod(sampler.envs.action_space[0].shape)),
         hidden_sizes=(args.hidden_size,) * args.num_layers)
 
     baseline = LinearFeatureBaseline(
-        input_size=int(np.prod(sampler.envs.observation_space.shape)))
+        input_size=int(np.prod(sampler.envs.observation_space[0].shape)))
 
     meta_learner = MetaLearner(
         sampler, policy, baseline, gamma=args.gamma,
@@ -46,6 +48,8 @@ def main(args):
     iteration = 0
     while True:
         tasks = sampler.sample_tasks(num_tasks=args.meta_batch_size)
+        import sys
+        sys.exit()
         episodes = meta_learner.sample(tasks, first_order=args.first_order, iteration=iteration)
 
         # Train meta-policy
