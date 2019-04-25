@@ -19,6 +19,9 @@ virtualenv venv
 source venv/bin/activate
 pip3.6 install -r requirements.txt
 
+# Add baseline package to path
+export PYTHONPATH=$DIR/thirdparty/multiagent-particle-envs:$PYTHONPATH
+
 # Train tf 
 print_header "Training network"
 cd $DIR
@@ -28,7 +31,7 @@ cd $DIR
 
 # Experiment
 python3.6 main.py \
---env-name HalfCheetahDir-v1 \
+--env-name simple_tag \
 --num-workers 8 \
 --fast-lr 0.1 \
 --max-kl 0.01 \
@@ -40,5 +43,6 @@ python3.6 main.py \
 --tau 1.0 \
 --cg-damping 1e-5 \
 --ls-max-steps 15 \
---first-order \
+--n-predator 1 \
+--n-prey 1 \
 --device cuda

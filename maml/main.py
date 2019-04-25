@@ -5,7 +5,7 @@ import numpy as np
 import multiprocessing as mp
 from maml_rl.metalearner import MetaLearner
 from maml_rl.metatester import MetaTester
-from maml_rl.policies import CategoricalMLPPolicy, NormalMLPPolicy
+from maml_rl.policies import NormalMLPPolicy
 from maml_rl.baseline import LinearFeatureBaseline
 from maml_rl.sampler import BatchSampler
 from misc.utils import set_log
@@ -21,27 +21,13 @@ def main(args):
     sampler = BatchSampler(
         env_name=args.env_name, 
         batch_size=args.fast_batch_size, 
-        num_workers=args.num_workers)
+        num_workers=args.num_workers,
+        args=args)
 
-    continuous_actions = (args.env_name in [
-        'AntVel-v1', 
-        'AntDir-v1',
-        'AntPos-v0', 
-        'HalfCheetahVel-v1', 
-        'HalfCheetahDir-v1',
-        '2DNavigation-v0'])
-    log[args.log_name].info("Continuous Action: {}".format(continuous_actions))
-
-    if continuous_actions:
-        policy = NormalMLPPolicy(
-            input_size=int(np.prod(sampler.envs.observation_space.shape)),
-            output_size=int(np.prod(sampler.envs.action_space.shape)),
-            hidden_sizes=(args.hidden_size,) * args.num_layers)
-    else:
-        policy = CategoricalMLPPolicy(
-            int(np.prod(sampler.envs.observation_space.shape)),
-            sampler.envs.action_space.n,
-            hidden_sizes=(args.hidden_size,) * args.num_layers)
+    policy = NormalMLPPolicy(
+        input_size=int(np.prod(sampler.envs.observation_space.shape)),
+        output_size=int(np.prod(sampler.envs.action_space.shape)),
+        hidden_sizes=(args.hidden_size,) * args.num_layers)
 
     baseline = LinearFeatureBaseline(
         input_size=int(np.prod(sampler.envs.observation_space.shape)))
@@ -128,6 +114,16 @@ if __name__ == '__main__':
     parser.add_argument(
         '--ls-backtrack-ratio', type=float, default=0.8,
         help='maximum number of iterations for line search')
+
+    # Predator
+    parser.add_argument(
+        "--n-predator", default=1, type=int, 
+        help="Number of predators")
+
+    # Prey
+    parser.add_argument(
+        "--n-prey", default=1, type=int, 
+        help="Number of preys")
 
     # Miscellaneous
     parser.add_argument(
