@@ -2,6 +2,7 @@ import git
 import torch
 import multiprocessing as mp
 import multiagent.scenarios as scenarios
+import numpy as np
 from maml_rl.envs.subproc_vec_env import SubprocVecEnv
 from maml_rl.episode import BatchEpisodes
 from multiagent.environment import MultiAgentEnv
@@ -56,25 +57,47 @@ class BatchSampler(object):
             [make_env(args) for _ in range(num_workers)], queue=self.queue)
         self._env = make_env(args)()
 
-    def sample(self, policy, params=None, gamma=0.95, device='cpu'):
+    def sample(self, policy, params=None, opponent_policy=None, gamma=0.95, device='cpu'):
         """Sample # of trajectories defined by "self.batch_size". The size of each
         trajectory is defined by the Gym env registration defined at:
         ./maml_rl/envs/__init__.py
         """
+        assert opponent_policy is not None
+
         episodes = BatchEpisodes(batch_size=self.batch_size, gamma=gamma, device=device)
         for i in range(self.batch_size):
             self.queue.put(i)
         for _ in range(self.num_workers):
             self.queue.put(None)
-        observations, worker_ids = self.envs.reset()
+        observations, worker_ids = self.envs.reset()  # TODO reset needs to be fixed
         dones = [False]
         while (not all(dones)) or (not self.queue.empty()):
             with torch.no_grad():
-                observations_tensor = torch.from_numpy(observations).to(device=device)
-                actions_tensor = policy(observations_tensor, params=params).sample()
-                actions = actions_tensor.cpu().numpy()
+                # Get observations
+                predator_observations, prey_observations = self.split_observations(observations)
+                predator_observations_torch = torch.from_numpy(predator_observations).to(device=device)
+                prey_observations_torch = torch.from_numpy(prey_observations).to(device=device)
+
+                # Get actions
+                predator_actions = policy(predator_observations_torch, params=params).sample()
+                predator_actions = predator_actions.cpu().numpy()
+
+                prey_actions = opponent_policy.select_deterministic_action(prey_observations_torch)
+                prey_actions = prey_actions.cpu().numpy()
+            actions = np.concatenate([prey_actions, prey_actions], axis=1)
             new_observations, rewards, dones, new_worker_ids, _ = self.envs.step(actions)
-            episodes.append(observations, actions, rewards, worker_ids)
+            dones = dones[:, 0]
+
+            # Get new observations
+            new_predator_observations, new_prey_observations = self.split_observations(new_observations)
+
+            # Get rewards
+            predator_rewards = rewards[:, 0]
+            episodes.append(
+                predator_observations, 
+                predator_actions, 
+                predator_rewards,
+                worker_ids)
             observations, worker_ids = new_observations, new_worker_ids
 
         return episodes
@@ -85,5 +108,19 @@ class BatchSampler(object):
         return all(reset)
 
     def sample_tasks(self, num_tasks):
-        tasks = self._env.unwrapped.sample_tasks(num_tasks)
+        n_population = 1  # TODO Change number later
+        i_agents = np.random.randint(low=0, high=n_population, size=(num_tasks, ))
+        tasks = [{"i_agent": i_agent} for i_agent in i_agents]
         return tasks
+
+    def split_observations(self, observations):
+        predator_observations = []
+        prey_observations = []
+        for obs in observations:
+            assert len(obs) == 2
+            predator_observations.append(obs[0])
+            prey_observations.append(obs[1])
+
+        return \
+            np.asarray(predator_observations, dtype=np.float32), \
+            np.asarray(prey_observations, dtype=np.float32)

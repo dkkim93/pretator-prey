@@ -8,6 +8,7 @@ if is_py2:
 else:
     import queue as queue
 
+
 class EnvWorker(mp.Process):
     def __init__(self, remote, env_fn, queue, lock):
         super(EnvWorker, self).__init__()
@@ -19,9 +20,15 @@ class EnvWorker(mp.Process):
         self.done = False
 
     def empty_step(self):
-        observation = np.zeros(self.env.observation_space.shape,
-                               dtype=np.float32)
-        reward, done = 0.0, True
+        # observation = np.zeros(self.env.observation_space.shape,
+        #                        dtype=np.float32)
+        # reward, done = 0.0, True
+        # Assuming only one predator and one prey
+        observation = [
+            np.zeros(self.env.observation_space[0].shape, dtype=np.float32),
+            np.zeros(self.env.observation_space[1].shape, dtype=np.float32)]
+        reward = [0., 0.]
+        done = [True, True]
         return observation, reward, done, {}
 
     def try_reset(self):
@@ -31,16 +38,19 @@ class EnvWorker(mp.Process):
                 self.done = (self.task_id is None)
             except queue.Empty:
                 self.done = True
-        observation = (np.zeros(self.env.observation_space.shape,
-            dtype=np.float32) if self.done else self.env.reset())
+        if self.done:
+            observation = [
+                np.zeros(self.env.observation_space[0].shape, dtype=np.float32),
+                np.zeros(self.env.observation_space[1].shape, dtype=np.float32)]
+        else:
+            observation = self.env.reset()
         return observation
 
     def run(self):
         while True:
             command, data = self.remote.recv()
             if command == 'step':
-                observation, reward, done, info = (self.empty_step()
-                    if self.done else self.env.step(data))
+                observation, reward, done, info = (self.empty_step() if self.done else self.env.step(data))
                 if done and (not self.done):
                     observation = self.try_reset()
                 self.remote.send((observation, reward, done, self.task_id, info))

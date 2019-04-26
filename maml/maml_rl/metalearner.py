@@ -4,6 +4,7 @@ from torch.distributions.kl import kl_divergence
 from maml_rl.utils.torch_utils import weighted_mean, detach_distribution, weighted_normalize
 from maml_rl.utils.optimization import conjugate_gradient
 from misc.utils import total_rewards
+from td3.prey import Prey
 
 
 class MetaLearner(object):
@@ -88,11 +89,18 @@ class MetaLearner(object):
 
         episodes = []
         for task in tasks:
-            self.sampler.reset_task(task)
+            # self.sampler.reset_task(task)  NOTE
+            # Each task is defined as a different opponent
+            opponent_policy = Prey(
+                env=self.sampler._env, args=self.args, log=self.log, 
+                tb_writer=self.tb_writer, name="prey", i_agent=0)
+            opponent_policy.load_model(
+                filename="seed::" + str(task["i_agent"]) + "_prey0",
+                directory="./pytorch_models/1vs1/")
 
             # Get task-specific train data (line 5)
             train_episodes = self.sampler.sample(
-                policy=self.policy, params=None,
+                policy=self.policy, params=None, opponent_policy=opponent_policy,
                 gamma=self.gamma, device=self.device)
 
             # Compute task-specific adapted parameters (line 6-7)
@@ -100,7 +108,7 @@ class MetaLearner(object):
 
             # Get meta data for meta-policy training (line 8)
             valid_episodes = self.sampler.sample(
-                self.policy, params=params,
+                self.policy, params=params, opponent_policy=opponent_policy,
                 gamma=self.gamma, device=self.device)
 
             episodes.append((train_episodes, valid_episodes))
