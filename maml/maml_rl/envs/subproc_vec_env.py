@@ -39,6 +39,7 @@ class EnvWorker(mp.Process):
             except queue.Empty:
                 self.done = True
         if self.done:
+            assert len(self.env.observation_space) == 2
             observation = [
                 np.zeros(self.env.observation_space[0].shape, dtype=np.float32),
                 np.zeros(self.env.observation_space[1].shape, dtype=np.float32)]
@@ -51,7 +52,8 @@ class EnvWorker(mp.Process):
             command, data = self.remote.recv()
             if command == 'step':
                 observation, reward, done, info = (self.empty_step() if self.done else self.env.step(data))
-                if done and (not self.done):
+                # NOTE [0] needed as we have two agents. This bug is fixed
+                if done[0] and (not self.done):
                     observation = self.try_reset()
                 self.remote.send((observation, reward, done, self.task_id, info))
             elif command == 'reset':
@@ -64,16 +66,19 @@ class EnvWorker(mp.Process):
                 self.remote.close()
                 break
             elif command == 'get_spaces':
-                self.remote.send((self.env.observation_space,
-                                 self.env.action_space))
+                self.remote.send((
+                    self.env.observation_space,
+                    self.env.action_space))
             else:
                 raise NotImplementedError()
+
 
 class SubprocVecEnv(gym.Env):
     def __init__(self, env_factory, queue):
         self.lock = mp.Lock()
         self.remotes, self.work_remotes = zip(*[mp.Pipe() for _ in env_factory])
-        self.workers = [EnvWorker(remote, env_fn, queue, self.lock)
+        self.workers = [
+            EnvWorker(remote, env_fn, queue, self.lock)
             for (remote, env_fn) in zip(self.work_remotes, env_factory)]
         for worker in self.workers:
             worker.daemon = True

@@ -29,7 +29,7 @@ def make_env(args):
         world = scenario.make_world(
             n_prey=args.n_prey,
             n_predator=args.n_predator)
-        done_callback = None
+        done_callback = scenario.done_callback
 
         env = MultiAgentEnv(
             world,
@@ -69,6 +69,7 @@ class BatchSampler(object):
             self.queue.put(i)
         for _ in range(self.num_workers):
             self.queue.put(None)
+
         observations, worker_ids = self.envs.reset()  # TODO reset needs to be fixed
         dones = [False]
         while (not all(dones)) or (not self.queue.empty()):

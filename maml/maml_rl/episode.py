@@ -93,8 +93,7 @@ class BatchEpisodes(object):
         return advantages
 
     def append(self, observations, actions, rewards, batch_ids):
-        for observation, action, reward, batch_id in zip(
-                observations, actions, rewards, batch_ids):
+        for observation, action, reward, batch_id in zip(observations, actions, rewards, batch_ids):
             if batch_id is None:
                 continue
             self._observations_list[batch_id].append(observation.astype(np.float32))
