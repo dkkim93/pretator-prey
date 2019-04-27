@@ -250,3 +250,7 @@ class MetaLearner(object):
         filename = "theta_" + str(iteration)
         directory = "./pytorch_models"
         torch.save(self.policy.state_dict(), '%s/%s_actor.pth' % (directory, filename))
+
+    def load(self, filename, directory):
+        actor_weight = torch.load('%s/%s_actor.pth' % (directory, filename), map_location='cpu')
+        self.policy.load_state_dict(actor_weight)

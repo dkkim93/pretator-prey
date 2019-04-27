@@ -40,6 +40,9 @@ def main(args):
         fast_lr=args.fast_lr, tau=args.tau, device=args.device,
         args=args, log=log, tb_writer=tb_writer)
 
+    # meta_learner.load(
+    #     filename="theta_200", directory="./pytorch_models")
+
     meta_tester = MetaTester(
         sampler, policy, baseline, gamma=args.gamma,
         fast_lr=args.fast_lr, tau=args.tau, device=args.device,
