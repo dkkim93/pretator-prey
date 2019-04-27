@@ -36,7 +36,7 @@ python3.6 main.py \
 --fast-lr 0.1 \
 --max-kl 0.01 \
 --fast-batch-size 20 \
---meta-batch-size 40 \
+--meta-batch-size 1 \
 --num-layers 2 \
 --hidden-size 100 \
 --gamma 0.95 \
