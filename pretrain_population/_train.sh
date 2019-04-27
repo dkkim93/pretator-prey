@@ -30,16 +30,15 @@ cd $DIR
 export CUDA_VISIBLE_DEVICES=-1
 
 # Experiment 1
-for i in {0..10..1}
+for i in {0..20..1}
 do 
     python3.6 main.py \
     --env-name "simple_tag" \
     --start-timesteps 2000 \
     --ep-max-timesteps 100 \
-    --ep-max 1000 \
-    --n-predator 1 \
+    --ep-max 1500 \
+    --n-predator 2 \
     --n-prey 1 \
     --seed $i \
     --prefix ""
 done
-
