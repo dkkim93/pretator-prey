@@ -4,12 +4,12 @@ import argparse
 import numpy as np
 import multiprocessing as mp
 from maml_rl.metalearner import MetaLearner
-from maml_rl.metatester import MetaTester
 from maml_rl.policies import NormalMLPPolicy
 from maml_rl.baseline import LinearFeatureBaseline
 from maml_rl.sampler import BatchSampler
 from misc.utils import set_log
 from tensorboardX import SummaryWriter
+from td3.prey import Prey
 
 
 def main(args):
@@ -39,27 +39,21 @@ def main(args):
         fast_lr=args.fast_lr, tau=args.tau, device=args.device,
         args=args, log=log, tb_writer=tb_writer)
 
-    meta_tester = MetaTester(
-        sampler, policy, baseline, gamma=args.gamma,
-        fast_lr=args.fast_lr, tau=args.tau, device=args.device,
-        args=args, log=log, tb_writer=tb_writer)
+    prey = Prey(
+        env=sampler._env, args=args, log=log, 
+        tb_writer=tb_writer, name="prey", i_agent=0)   
 
     # Meta-train starts
     iteration = 0
     while True:
+        # Sample train and validation episode
         tasks = sampler.sample_tasks(num_tasks=args.meta_batch_size)
-        episodes = meta_learner.sample(tasks, first_order=args.first_order, iteration=iteration)
+        episodes = meta_learner.sample(
+            tasks, prey, first_order=args.first_order, iteration=iteration)
 
         # Train meta-policy
         meta_learner.step(episodes=episodes, args=args)
         
-        # # Test meta-policy
-        # if iteration % 10 == 0:
-        #     test_tasks = sampler.sample_tasks(num_tasks=args.meta_batch_size)
-        #     meta_tester.few_shot_adaptation(
-        #         meta_policy=meta_learner.policy, tasks=test_tasks, 
-        #         first_order=args.first_order, iteration=iteration)
-
         iteration += 1
 
 

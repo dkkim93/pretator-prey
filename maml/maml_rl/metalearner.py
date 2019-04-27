@@ -4,7 +4,6 @@ from torch.distributions.kl import kl_divergence
 from maml_rl.utils.torch_utils import weighted_mean, detach_distribution, weighted_normalize
 from maml_rl.utils.optimization import conjugate_gradient
 from misc.utils import total_rewards
-from td3.prey import Prey
 
 
 class MetaLearner(object):
@@ -81,16 +80,13 @@ class MetaLearner(object):
 
         return params
 
-    def sample(self, tasks, first_order=False, iteration=None):
+    def sample(self, tasks, prey, first_order=False, iteration=None):
         """Sample trajectories (before and after the update of the parameters) 
         for all the tasks `tasks`.
         """
         assert iteration is not None, "iteration is None. Provide value"
 
         episodes = []
-        prey = Prey(
-            env=self.sampler._env, args=self.args, log=self.log, 
-            tb_writer=self.tb_writer, name="prey", i_agent=0)
         for task in tasks:
             # Each task is defined as a different opponent
             prey.load_model(
