@@ -4,6 +4,7 @@ import argparse
 import numpy as np
 import multiprocessing as mp
 from maml_rl.metalearner import MetaLearner
+from maml_rl.metatester import MetaTester
 from maml_rl.policies import NormalMLPPolicy
 from maml_rl.baseline import LinearFeatureBaseline
 from maml_rl.sampler import BatchSampler
@@ -39,6 +40,11 @@ def main(args):
         fast_lr=args.fast_lr, tau=args.tau, device=args.device,
         args=args, log=log, tb_writer=tb_writer)
 
+    meta_tester = MetaTester(
+        sampler, policy, baseline, gamma=args.gamma,
+        fast_lr=args.fast_lr, tau=args.tau, device=args.device,
+        args=args, log=log, tb_writer=tb_writer)
+
     prey = Prey(
         env=sampler._env, args=args, log=log, 
         tb_writer=tb_writer, name="prey", i_agent=0)   
@@ -53,6 +59,16 @@ def main(args):
 
         # Train meta-policy
         meta_learner.step(episodes=episodes, args=args)
+
+        # Test meta-policy
+        if iteration % 10 == 0:
+            test_tasks = sampler.sample_tasks(num_tasks=5, test=True)
+            meta_tester.few_shot_adaptation(
+                meta_policy=meta_learner.policy, tasks=test_tasks, 
+                first_order=args.first_order, iteration=iteration, prey=prey)
+
+        if iteration % 100 == 0:
+            meta_learner.save(iteration)
         
         iteration += 1
 

@@ -245,3 +245,8 @@ class MetaLearner(object):
         self.policy.to(device, **kwargs)
         self.baseline.to(device, **kwargs)
         self.device = device
+
+    def save(self, iteration):
+        filename = "theta_" + str(iteration)
+        directory = "./pytorch_models"
+        torch.save(self.policy.state_dict(), '%s/%s_actor.pth' % (directory, filename))

@@ -113,9 +113,14 @@ class BatchSampler(object):
         reset = self.envs.reset_task(tasks)
         return all(reset)
 
-    def sample_tasks(self, num_tasks):
-        n_population = 15  # TODO Change number later
-        i_agents = np.random.randint(low=0, high=n_population, size=(num_tasks, ))
+    def sample_tasks(self, num_tasks, test=True):
+        n_train_population = 15
+        if test is False:
+            i_agents = np.random.randint(low=0, high=n_train_population, size=(num_tasks, ))
+        else:
+            i_agents = np.random.randint(
+                low=15, high=20, size=(num_tasks, ))
+
         tasks = [{"i_agent": i_agent} for i_agent in i_agents]
         return tasks
 
