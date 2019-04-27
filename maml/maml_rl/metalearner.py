@@ -88,27 +88,26 @@ class MetaLearner(object):
         assert iteration is not None, "iteration is None. Provide value"
 
         episodes = []
+        prey = Prey(
+            env=self.sampler._env, args=self.args, log=self.log, 
+            tb_writer=self.tb_writer, name="prey", i_agent=0)
         for task in tasks:
-            # self.sampler.reset_task(task)  NOTE
             # Each task is defined as a different opponent
-            opponent_policy = Prey(
-                env=self.sampler._env, args=self.args, log=self.log, 
-                tb_writer=self.tb_writer, name="prey", i_agent=0)
-            opponent_policy.load_model(
+            prey.load_model(
                 filename="seed::" + str(task["i_agent"]) + "_prey0",
                 directory="./pytorch_models/1vs1/")
 
             # Get task-specific train data (line 5)
             train_episodes = self.sampler.sample(
-                policy=self.policy, params=None, opponent_policy=opponent_policy,
+                policy=self.policy, params=None, prey=prey,
                 gamma=self.gamma, device=self.device)
-
+            
             # Compute task-specific adapted parameters (line 6-7)
             params = self.adapt(train_episodes, first_order=first_order)
 
             # Get meta data for meta-policy training (line 8)
             valid_episodes = self.sampler.sample(
-                self.policy, params=params, opponent_policy=opponent_policy,
+                self.policy, params=params, prey=prey,
                 gamma=self.gamma, device=self.device)
 
             episodes.append((train_episodes, valid_episodes))
@@ -218,6 +217,7 @@ class MetaLearner(object):
         grads = parameters_to_vector(grads)
         
         if args.first_order:
+            raise ValueError("no first order")
             step = grads
         else:
             # Compute the step direction with Conjugate Gradient

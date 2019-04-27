@@ -1,3 +1,4 @@
+import copy
 import git
 import torch
 import multiprocessing as mp
@@ -8,7 +9,7 @@ from maml_rl.episode import BatchEpisodes
 from multiagent.environment import MultiAgentEnv
 
 
-def make_env(args):
+def make_env(args, i_worker):
     def check_github(path, branch_name):
         """Checks whether the path has a correct branch name"""
         repo = git.Repo(path)
@@ -38,6 +39,9 @@ def make_env(args):
             observation_callback=scenario.observation,
             done_callback=done_callback)
 
+        print("i_worker:", i_worker)
+        env.seed(i_worker)
+
         assert env.discrete_action_space is False, "For cont. action, this flag must be False"
         assert env.shared_reward is False, "For predator-prey, this must be False"
 
@@ -54,15 +58,15 @@ class BatchSampler(object):
         
         self.queue = mp.Queue()
         self.envs = SubprocVecEnv(
-            [make_env(args) for _ in range(num_workers)], queue=self.queue)
-        self._env = make_env(args)()
+            [make_env(args, i_worker) for i_worker in range(num_workers)], queue=self.queue)
+        self._env = make_env(args, i_worker=99)()
 
-    def sample(self, policy, params=None, opponent_policy=None, gamma=0.95, device='cpu'):
+    def sample(self, policy, params=None, prey=None, gamma=0.95, device='cpu'):
         """Sample # of trajectories defined by "self.batch_size". The size of each
         trajectory is defined by the Gym env registration defined at:
         ./maml_rl/envs/__init__.py
         """
-        assert opponent_policy is not None
+        assert prey is not None
 
         episodes = BatchEpisodes(batch_size=self.batch_size, gamma=gamma, device=device)
         for i in range(self.batch_size):
@@ -83,14 +87,15 @@ class BatchSampler(object):
                 predator_actions = policy(predator_observations_torch, params=params).sample()
                 predator_actions = predator_actions.cpu().numpy()
 
-                prey_actions = opponent_policy.select_deterministic_action(prey_observations_torch)
+                prey_actions = prey.select_deterministic_action(prey_observations_torch)
                 prey_actions = prey_actions.cpu().numpy()
             actions = np.concatenate([prey_actions, prey_actions], axis=1)
-            new_observations, rewards, dones, new_worker_ids, _ = self.envs.step(actions)
+            new_observations, rewards, dones, new_worker_ids, _ = self.envs.step(copy.deepcopy(actions))
+            assert np.sum(dones[:, 0]) == np.sum(dones[:, 1])
             dones = dones[:, 0]
 
             # Get new observations
-            new_predator_observations, new_prey_observations = self.split_observations(new_observations)
+            new_predator_observations, _ = self.split_observations(new_observations)
 
             # Get rewards
             predator_rewards = rewards[:, 0]

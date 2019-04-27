@@ -32,14 +32,14 @@ cd $DIR
 # Experiment
 python3.6 main.py \
 --env-name simple_tag \
---num-workers 8 \
+--num-workers 1 \
 --fast-lr 0.1 \
 --max-kl 0.01 \
 --fast-batch-size 20 \
 --meta-batch-size 40 \
 --num-layers 2 \
 --hidden-size 100 \
---gamma 0.99 \
+--gamma 0.95 \
 --tau 1.0 \
 --cg-damping 1e-5 \
 --ls-max-steps 15 \

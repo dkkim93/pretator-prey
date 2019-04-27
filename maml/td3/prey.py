@@ -144,7 +144,6 @@ class Prey(object):
         self.policy.save(filename, directory)
 
     def load_weight(self, filename, directory):
-        self.log[self.args.log_name].info("[{}] Loaded weight".format(self.name))
         self.policy.load(filename, directory)
 
     def load_model(self, filename, directory):
