@@ -89,9 +89,9 @@ class MetaLearner(object):
         episodes = []
         for task in tasks:
             # Each task is defined as a different opponent
-            # prey.load_model(
-            #     filename="seed::" + str(task["i_agent"]) + "_prey0",
-            #     directory="./pytorch_models/1vs1/")
+            prey.load_model(
+                filename="seed::" + str(task["i_agent"]) + "_prey0",
+                directory="./pytorch_models/1vs1/")
 
             # Get task-specific train data (line 5)
             train_episodes = self.sampler.sample(
