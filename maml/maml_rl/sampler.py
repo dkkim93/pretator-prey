@@ -89,7 +89,7 @@ class BatchSampler(object):
 
                 prey_actions = prey.select_deterministic_action(prey_observations_torch)
                 prey_actions = prey_actions.cpu().numpy()
-            actions = np.concatenate([prey_actions, prey_actions], axis=1)
+            actions = np.concatenate([predator_actions, prey_actions], axis=1)
             new_observations, rewards, dones, new_worker_ids, _ = self.envs.step(copy.deepcopy(actions))
             assert np.sum(dones[:, 0]) == np.sum(dones[:, 1])
             dones = dones[:, 0]
