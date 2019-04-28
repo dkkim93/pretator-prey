@@ -23,12 +23,13 @@ class EnvWorker(mp.Process):
         # observation = np.zeros(self.env.observation_space.shape,
         #                        dtype=np.float32)
         # reward, done = 0.0, True
-        # Assuming only one predator and one prey
+        # NOTE Assuming only two predators and one prey
         observation = [
             np.zeros(self.env.observation_space[0].shape, dtype=np.float32),
-            np.zeros(self.env.observation_space[1].shape, dtype=np.float32)]
-        reward = [0., 0.]
-        done = [True, True]
+            np.zeros(self.env.observation_space[1].shape, dtype=np.float32),
+            np.zeros(self.env.observation_space[2].shape, dtype=np.float32)]
+        reward = [0., 0., 0.]
+        done = [True, True, True]
         return observation, reward, done, {}
 
     def try_reset(self):
@@ -39,10 +40,11 @@ class EnvWorker(mp.Process):
             except queue.Empty:
                 self.done = True
         if self.done:
-            assert len(self.env.observation_space) == 2
+            assert len(self.env.observation_space) == 3
             observation = [
                 np.zeros(self.env.observation_space[0].shape, dtype=np.float32),
-                np.zeros(self.env.observation_space[1].shape, dtype=np.float32)]
+                np.zeros(self.env.observation_space[1].shape, dtype=np.float32),
+                np.zeros(self.env.observation_space[2].shape, dtype=np.float32)]
         else:
             observation = self.env.reset()
         return observation

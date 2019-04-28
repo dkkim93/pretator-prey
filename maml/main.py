@@ -10,6 +10,7 @@ from maml_rl.baseline import LinearFeatureBaseline
 from maml_rl.sampler import BatchSampler
 from misc.utils import set_log
 from tensorboardX import SummaryWriter
+from td3.predator import Predator
 from td3.prey import Prey
 
 
@@ -48,6 +49,10 @@ def main(args):
         fast_lr=args.fast_lr, tau=args.tau, device=args.device,
         args=args, log=log, tb_writer=tb_writer)
 
+    teammate = Predator(
+        env=sampler._env, args=args, log=log, 
+        tb_writer=tb_writer, name="predator", i_agent=1) 
+
     prey = Prey(
         env=sampler._env, args=args, log=log, 
         tb_writer=tb_writer, name="prey", i_agent=0)   
@@ -58,7 +63,7 @@ def main(args):
         # Sample train and validation episode
         tasks = sampler.sample_tasks(num_tasks=args.meta_batch_size)
         episodes = meta_learner.sample(
-            tasks, prey, first_order=args.first_order, iteration=iteration)
+            tasks, teammate, prey, first_order=args.first_order, iteration=iteration)
 
         # Train meta-policy
         meta_learner.step(episodes=episodes, args=args)

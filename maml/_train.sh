@@ -43,6 +43,6 @@ python3.6 main.py \
 --tau 1.0 \
 --cg-damping 1e-5 \
 --ls-max-steps 15 \
---n-predator 1 \
+--n-predator 2 \
 --n-prey 1 \
 --device cuda

@@ -80,7 +80,7 @@ class MetaLearner(object):
 
         return params
 
-    def sample(self, tasks, prey, first_order=False, iteration=None):
+    def sample(self, tasks, teammate, prey, first_order=False, iteration=None):
         """Sample trajectories (before and after the update of the parameters) 
         for all the tasks `tasks`.
         """
@@ -89,21 +89,25 @@ class MetaLearner(object):
         episodes = []
         for task in tasks:
             # Each task is defined as a different opponent
+            teammate.load_model(
+                filename="seed::" + str(task["i_agent"]) + "_predator1",
+                directory="./pytorch_models/1vs2/")
+
             prey.load_model(
                 filename="seed::" + str(task["i_agent"]) + "_prey0",
-                directory="./pytorch_models/1vs1/")
+                directory="./pytorch_models/1vs2/")
 
             # Get task-specific train data (line 5)
             train_episodes = self.sampler.sample(
-                policy=self.policy, params=None, prey=prey,
+                policy=self.policy, params=None, teammate=teammate, prey=prey,
                 gamma=self.gamma, device=self.device)
-            
+
             # Compute task-specific adapted parameters (line 6-7)
             params = self.adapt(train_episodes, first_order=first_order)
 
             # Get meta data for meta-policy training (line 8)
             valid_episodes = self.sampler.sample(
-                self.policy, params=params, prey=prey,
+                self.policy, params=params, teammate=teammate, prey=prey,
                 gamma=self.gamma, device=self.device)
 
             episodes.append((train_episodes, valid_episodes))

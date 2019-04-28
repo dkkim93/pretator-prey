@@ -31,6 +31,15 @@ class Prey(object):
         self.critic_input_dim = (self.actor_input_dim + self.actor_output_dim)
         self.max_action = float(self.env.action_space[0].high[0])
 
+        self.log[self.args.log_name].info("[{0}] Actor input dim: {1}".format(
+            self.name, self.actor_input_dim))
+        self.log[self.args.log_name].info("[{0}] Actor output dim: {1}".format(
+            self.name, self.actor_output_dim))
+        self.log[self.args.log_name].info("[{0}] Critic input dim: {1}".format(
+            self.name, self.critic_input_dim))
+        self.log[self.args.log_name].info("[{0}] Max action: {1}".format(
+            self.name, self.max_action))
+
     def set_policy(self):
         self.policy = TD3(
             actor_input_dim=self.actor_input_dim,

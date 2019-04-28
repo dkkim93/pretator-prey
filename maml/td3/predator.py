@@ -1,7 +1,5 @@
 import torch
-import numpy as np
-from policy.td3 import TD3
-from misc.replay_buffer import ReplayBuffer
+from td3.td3 import TD3
 from collections import OrderedDict
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -53,60 +51,15 @@ class Predator(object):
             actor_input_dim=self.actor_input_dim,
             actor_output_dim=self.actor_output_dim,
             critic_input_dim=self.critic_input_dim,
-            n_hidden=self.args.prey_n_hidden,
+            n_hidden=400,
             max_action=self.max_action,
             name=self.name,
             args=self.args,
             i_agent=self.i_agent)
 
-        self.memory = ReplayBuffer()
-
-    def select_stochastic_action(self, obs, total_timesteps):
-        if total_timesteps < self.args.start_timesteps:
-            action = self.env.action_space[0].sample()
-            assert not np.isnan(action).any()
-        else:
-            action = self.policy.select_action(obs)
-            assert not np.isnan(action).any()
-            if self.args.expl_noise != 0:
-                noise = np.random.normal(0, self.args.expl_noise, size=self.env.action_space[0].shape[0])
-                action = (action + noise).clip(
-                    self.env.action_space[0].low, self.env.action_space[0].high)
-
-        return action
-
     def select_deterministic_action(self, obs):
         action = self.policy.select_action(obs)
-        assert not np.isnan(action).any()
-
         return action
-
-    def add_memory(self, obs, new_obs, action, reward, done):
-        self.memory.add((obs, new_obs, action, reward, done))
-
-    def clear_memory(self):
-        self.memory.clear()
-
-    def update_policy(self, agents, total_eps):
-        debug = self.policy.centralized_train(
-            agents=agents,
-            replay_buffer=self.memory,
-            iterations=self.args.ep_max_timesteps,
-            batch_size=self.args.batch_size, 
-            discount=self.args.discount, 
-            tau=self.args.tau, 
-            policy_noise=self.args.policy_noise, 
-            noise_clip=self.args.noise_clip,
-            policy_freq=self.args.policy_freq)
-
-        self.tb_writer.add_scalars(
-            "loss/actor_loss", 
-            {self.name: debug["actor_loss"]}, total_eps)
-        self.tb_writer.add_scalars(
-            "loss/critic_loss", 
-            {self.name: debug["critic_loss"]}, total_eps)
-
-        return debug
 
     def fix_name(self, weight):
         weight_fixed = OrderedDict()
@@ -156,7 +109,6 @@ class Predator(object):
         self.policy.save(filename, directory)
 
     def load_weight(self, filename, directory):
-        self.log[self.args.log_name].info("[{}] Loaded weight".format(self.name))
         self.policy.load(filename, directory)
 
     def load_model(self, filename, directory):
@@ -169,32 +121,3 @@ class Predator(object):
         self.policy.actor_target.eval()
         self.policy.critic.eval()
         self.policy.critic_target.eval()
-
-    def save_model(self, avg_eval_reward, total_ep_count):
-        import pickle
-
-        def save_pickle(obj, filename):
-            with open(filename, "wb") as output:
-                pickle.dump(obj, output, pickle.HIGHEST_PROTOCOL)
-
-        # Filename by converting it to percentage
-        filename = \
-            self.name + \
-            "_reward" + "{:.3f}".format(avg_eval_reward) + \
-            "_seed" + str(self.args.seed) + \
-            "_ep" + str(total_ep_count)
-
-        # Save loss history & memory
-        snipshot = {}
-        snipshot["actor_loss_n"] = self.actor_loss_n
-        snipshot["critic_loss_n"] = self.critic_loss_n
-        snipshot["memory"] = self.memory
-
-        save_pickle(
-            obj=snipshot,
-            filename=filename + ".pkl")
-
-        # Save weight
-        self.save_weight(
-            filename=filename,
-            directory="./pytorch_models")
