@@ -80,7 +80,7 @@ class MetaTester(object):
 
         return params
 
-    def few_shot_adaptation(self, meta_policy, tasks, first_order, iteration, prey):
+    def few_shot_adaptation(self, meta_policy, tasks, first_order, iteration, teammate, prey):
         assert iteration is not None, "iteration is None. Provide value"
 
         total_shot = 2
@@ -91,9 +91,13 @@ class MetaTester(object):
             self.policy = copy.deepcopy(meta_policy)
 
             # Each task is defined as a different opponent
+            teammate.load_model(
+                filename="seed::" + str(task["i_agent"]) + "_predator1",
+                directory="./pytorch_models/1vs2/")
+
             prey.load_model(
                 filename="seed::" + str(task["i_agent"]) + "_prey0",
-                directory="./pytorch_models/1vs1/")
+                directory="./pytorch_models/1vs2/")
 
             for k_shot in range(total_shot):
                 if k_shot == 0:
@@ -102,7 +106,7 @@ class MetaTester(object):
                 # Get task-specific train data (line 5)
                 # train_episodes shape: (horizon, args.fast_batch_size)
                 train_episodes = self.sampler.sample(
-                    policy=self.policy, params=params, prey=prey,
+                    policy=self.policy, params=params, teammate=teammate, prey=prey,
                     gamma=self.gamma, device=self.device)
 
                 # Compute task-specific adapted parameters (line 6-7)
