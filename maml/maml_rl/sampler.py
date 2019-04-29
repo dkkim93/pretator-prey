@@ -121,12 +121,10 @@ class BatchSampler(object):
         return all(reset)
 
     def sample_tasks(self, num_tasks, test=False):
-        n_train_population = 15
         if test is False:
-            i_agents = np.random.randint(low=0, high=1, size=(num_tasks, ))
+            i_agents = np.random.randint(low=0, high=16, size=(num_tasks, ))
         else:
-            i_agents = np.random.randint(
-                low=15, high=20, size=(num_tasks, ))
+            i_agents = np.random.randint(low=16, high=21, size=(num_tasks, ))
 
         tasks = [{"i_agent": i_agent} for i_agent in i_agents]
         return tasks

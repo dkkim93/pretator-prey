@@ -61,22 +61,22 @@ def main(args):
     iteration = 0
     while True:
         # Sample train and validation episode
-        tasks = sampler.sample_tasks(num_tasks=args.meta_batch_size)
+        tasks = sampler.sample_tasks(num_tasks=args.meta_batch_size, test=False)
         episodes = meta_learner.sample(
             tasks, teammate, prey, first_order=args.first_order, iteration=iteration)
 
         # Train meta-policy
         meta_learner.step(episodes=episodes, args=args)
 
-        # # Test meta-policy
-        # if iteration % 10 == 0:
-        #     test_tasks = sampler.sample_tasks(num_tasks=5, test=True)
-        #     meta_tester.few_shot_adaptation(
-        #         meta_policy=meta_learner.policy, tasks=test_tasks, 
-        #         first_order=args.first_order, iteration=iteration, teammate=teammate, prey=prey)
+        # Test meta-policy
+        if iteration % 10 == 0:
+            test_tasks = sampler.sample_tasks(num_tasks=5, test=True)
+            meta_tester.few_shot_adaptation(
+                meta_policy=meta_learner.policy, tasks=test_tasks, 
+                first_order=args.first_order, iteration=iteration, teammate=teammate, prey=prey)
 
-        # if iteration % 100 == 0:
-        #     meta_learner.save(iteration)
+        if iteration % 100 == 0:
+            meta_learner.save(iteration)
         
         iteration += 1
 
