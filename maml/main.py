@@ -56,7 +56,7 @@ def main(args):
     iteration = 0
     while True:
         # Sample train and validation episode
-        tasks = sampler.sample_tasks(num_tasks=args.meta_batch_size)
+        tasks = sampler.sample_tasks(num_tasks=args.meta_batch_size, test=False)
         episodes = meta_learner.sample(
             tasks, prey, first_order=args.first_order, iteration=iteration)
 
