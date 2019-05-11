@@ -61,13 +61,12 @@ class BatchSampler(object):
             [make_env(args, i_worker) for i_worker in range(num_workers)], queue=self.queue)
         self._env = make_env(args, i_worker=99)()
 
-    def sample(self, policy, params=None, teammate=None, prey=None, gamma=0.95, device='cpu'):
+    def sample(self, policy, params=None, predators=None, gamma=0.95, device='cpu'):
         """Sample # of trajectories defined by "self.batch_size". The size of each
         trajectory is defined by the Gym env registration defined at:
         ./maml_rl/envs/__init__.py
         """
-        assert teammate is not None
-        assert prey is not None
+        assert predators is not None
 
         episodes = BatchEpisodes(batch_size=self.batch_size, gamma=gamma, device=device)
         for i in range(self.batch_size):
@@ -81,35 +80,35 @@ class BatchSampler(object):
         while (not all(dones)) or (not self.queue.empty()):
             with torch.no_grad():
                 # Get observations
-                predator_observations, teammate_observations, prey_observations = \
+                predator0_observations, predator1_observations, prey_observations = \
                     self.split_observations(observations)
-                predator_observations_torch = torch.from_numpy(predator_observations).to(device=device)
-                teammate_observations_torch = torch.from_numpy(teammate_observations).to(device=device)
+                predator0_observations_torch = torch.from_numpy(predator0_observations).to(device=device)
+                predator1_observations_torch = torch.from_numpy(predator1_observations).to(device=device)
                 prey_observations_torch = torch.from_numpy(prey_observations).to(device=device)
 
                 # Get actions
-                predator_actions = policy(predator_observations_torch, params=params).sample()
-                predator_actions = predator_actions.cpu().numpy()
+                predator0_actions = predators[0].select_deterministic_action(predator0_observations_torch)
+                predator0_actions = predator0_actions.cpu().numpy()
 
-                teammate_actions = teammate.select_deterministic_action(teammate_observations_torch)
-                teammate_actions = teammate_actions.cpu().numpy()
+                predator1_actions = predators[1].select_deterministic_action(predator1_observations_torch)
+                predator1_actions = predator1_actions.cpu().numpy()
 
-                prey_actions = prey.select_deterministic_action(prey_observations_torch)
+                prey_actions = policy(prey_observations_torch, params=params).sample()
                 prey_actions = prey_actions.cpu().numpy()
-            actions = np.concatenate([predator_actions, teammate_actions, prey_actions], axis=1)
+
+            actions = np.concatenate([predator0_actions, predator1_actions, prey_actions], axis=1)
             new_observations, rewards, dones, new_worker_ids, _ = self.envs.step(copy.deepcopy(actions))
-            assert np.sum(dones[:, 0]) == np.sum(dones[:, 1])
-            dones = dones[:, 0]
+            dones = dones[:, -1]
 
             # Get new observations
-            new_predator_observations, _, _ = self.split_observations(new_observations)
+            # _, _, new_prey_observations = self.split_observations(new_observations)
 
             # Get rewards
-            predator_rewards = rewards[:, 0]
+            prey_rewards = rewards[:, -1]
             episodes.append(
-                predator_observations, 
-                predator_actions, 
-                predator_rewards,
+                prey_observations, 
+                prey_actions, 
+                prey_rewards,
                 worker_ids)
             observations, worker_ids = new_observations, new_worker_ids
 
@@ -130,17 +129,17 @@ class BatchSampler(object):
         return tasks
 
     def split_observations(self, observations):
-        predator_observations = []
-        teammate_observations = []
+        predator0_observations = []
+        predator1_observations = []
         prey_observations = []
 
         for obs in observations:
             assert len(obs) == 3
-            predator_observations.append(obs[0])
-            teammate_observations.append(obs[1])
+            predator0_observations.append(obs[0])
+            predator1_observations.append(obs[1])
             prey_observations.append(obs[2])
 
         return \
-            np.asarray(predator_observations, dtype=np.float32), \
-            np.asarray(teammate_observations, dtype=np.float32), \
+            np.asarray(predator0_observations, dtype=np.float32), \
+            np.asarray(predator1_observations, dtype=np.float32), \
             np.asarray(prey_observations, dtype=np.float32)

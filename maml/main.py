@@ -11,7 +11,6 @@ from maml_rl.sampler import BatchSampler
 from misc.utils import set_log
 from tensorboardX import SummaryWriter
 from td3.predator import Predator
-from td3.prey import Prey
 
 
 def main(args):
@@ -27,14 +26,14 @@ def main(args):
         args=args)
     
     # NOTE Observation space is a list with [predator0, predator1, ..., prey]
-    # Thus using the index of 0
+    # Thus using the index of -1
     policy = NormalMLPPolicy(
-        input_size=int(np.prod(sampler.envs.observation_space[0].shape)),
-        output_size=int(np.prod(sampler.envs.action_space[0].shape)),
+        input_size=int(np.prod(sampler.envs.observation_space[-1].shape)),
+        output_size=int(np.prod(sampler.envs.action_space[-1].shape)),
         hidden_sizes=(args.hidden_size,) * args.num_layers)
 
     baseline = LinearFeatureBaseline(
-        input_size=int(np.prod(sampler.envs.observation_space[0].shape)))
+        input_size=int(np.prod(sampler.envs.observation_space[-1].shape)))
 
     meta_learner = MetaLearner(
         sampler, policy, baseline, gamma=args.gamma,
@@ -49,21 +48,16 @@ def main(args):
         fast_lr=args.fast_lr, tau=args.tau, device=args.device,
         args=args, log=log, tb_writer=tb_writer)
 
-    teammate = Predator(
-        env=sampler._env, args=args, log=log, 
-        tb_writer=tb_writer, name="predator", i_agent=1) 
-
-    prey = Prey(
-        env=sampler._env, args=args, log=log, 
-        tb_writer=tb_writer, name="prey", i_agent=0)   
+    predators = [
+        Predator(env=sampler._env, args=args, log=log, tb_writer=tb_writer, name="predator", i_agent=i_agent) 
+        for i_agent in range(2)]
 
     # Meta-train starts
     iteration = 0
     while True:
         # Sample train and validation episode
         tasks = sampler.sample_tasks(num_tasks=args.meta_batch_size, test=False)
-        episodes = meta_learner.sample(
-            tasks, teammate, prey, first_order=args.first_order, iteration=iteration)
+        episodes = meta_learner.sample(tasks, predators, first_order=args.first_order, iteration=iteration)
 
         # Train meta-policy
         meta_learner.step(episodes=episodes, args=args)
@@ -73,7 +67,7 @@ def main(args):
             test_tasks = sampler.sample_tasks(num_tasks=5, test=True)
             meta_tester.few_shot_adaptation(
                 meta_policy=meta_learner.policy, tasks=test_tasks, 
-                first_order=args.first_order, iteration=iteration, teammate=teammate, prey=prey)
+                first_order=args.first_order, iteration=iteration, predators=predators)
 
         if iteration % 100 == 0:
             meta_learner.save(iteration)
